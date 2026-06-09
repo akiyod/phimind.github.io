@@ -1,0 +1,892 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI哲学著作匹配平台 | 智能偏好分析</title>
+    <!-- 外部资源 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
+
+    <!-- Tailwind 全局配置 -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#2563eb',
+                        primaryLight: '#3b82f6',
+                        secondary: '#7c3aed',
+                        ai: '#059669',
+                        aiLight: '#10b981',
+                        neutral: '#4b5563',
+                        neutralLight: '#f9fafb',
+                        neutralDark: '#111827',
+                        warn: '#f59e0b',
+                        danger: '#ef4444'
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif']
+                    },
+                    borderRadius: {
+                        'xl': '1rem',
+                        '2xl': '1.25rem',
+                        '3xl': '1.5rem'
+                    },
+                    boxShadow: {
+                        card: '0 4px 20px rgba(0, 0, 0, 0.08)',
+                        glass: '0 8px 32px rgba(31, 38, 135, 0.15)'
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style type="text/tailwindcss">
+        @layer utilities {
+            /* 磨砂玻璃样式 */
+            .glass {
+                background: rgba(255, 255, 255, 0.75);
+                backdrop-filter: blur(12px);
+                -webkit-backdrop-filter: blur(12px);
+                border: 1px solid rgba(255, 255, 255, 0.3);
+            }
+            .glass-dark {
+                background: rgba(17, 24, 39, 0.85);
+                backdrop-filter: blur(12px);
+                -webkit-backdrop-filter: blur(12px);
+            }
+            /* 卡片悬浮动效 */
+            .card-float {
+                transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            }
+            .card-float:hover {
+                transform: translateY(-6px);
+                box-shadow: 0 12px 30px rgba(0, 0, 0, 0.12);
+            }
+            /* 滚动条美化 */
+            .scroll-smooth::-webkit-scrollbar {
+                width: 6px;
+                height: 6px;
+            }
+            .scroll-smooth::-webkit-scrollbar-thumb {
+                background: #d1d5db;
+                border-radius: 3px;
+            }
+            .scroll-smooth::-webkit-scrollbar-track {
+                background: transparent;
+            }
+            /* 答题选项样式 */
+            .answer-item {
+                transition: all 0.2s ease;
+                border: 2px solid transparent;
+            }
+            .answer-item.active {
+                border-color: #2563eb;
+                background-color: #eff6ff;
+            }
+            /* 骨架屏加载 */
+            .skeleton {
+                background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+                background-size: 200% 100%;
+                animation: skeleton-loading 1.5s infinite;
+            }
+            @keyframes skeleton-loading {
+                0% { background-position: 200% 0; }
+                100% { background-position: -200% 0; }
+            }
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 min-h-screen font-sans text-neutralDark">
+    <!-- 顶部导航栏 -->
+    <nav class="glass sticky top-0 z-50 shadow-card">
+        <div class="container mx-auto px-4 py-4 flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <i class="fa fa-book-open text-primary text-2xl"></i>
+                <h1 class="text-xl md:text-2xl font-bold text-neutralDark">AI哲学测评平台</h1>
+                <span class="bg-ai/15 text-ai text-xs px-3 py-1 rounded-full">AI 智能版</span>
+            </div>
+
+            <!-- 桌面端导航 + AI模式切换 -->
+            <div class="hidden md:flex items-center gap-6">
+                <a href="#home" class="text-neutral hover:text-primary transition-colors">首页</a>
+                <a href="#test" class="text-neutral hover:text-primary transition-colors">开始测评</a>
+                <a href="#aiChat" class="text-neutral hover:text-ai transition-colors">AI问答助手</a>
+                <a href="#books" class="text-neutral hover:text-primary transition-colors">著作库</a>
+
+                <!-- AI运行模式开关 -->
+                <div class="flex items-center gap-2 ml-4 pl-4 border-l border-gray-200">
+                    <span class="text-sm text-neutral">AI模式：</span>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="aiModeSwitch" class="sr-only peer" checked>
+                        <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-ai"></div>
+                        <span class="ml-2 text-sm peer-checked:text-ai">在线API</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- 移动端菜单按钮 -->
+            <button id="mobileMenuBtn" class="md:hidden text-neutral text-xl">
+                <i class="fa fa-bars"></i>
+            </button>
+        </div>
+
+        <!-- 移动端菜单 -->
+        <div id="mobileMenu" class="md:hidden hidden border-t border-gray-200 bg-white/80">
+            <div class="container mx-auto px-4 py-3 flex flex-col gap-3">
+                <a href="#home" class="py-2">首页</a>
+                <a href="#test" class="py-2">开始测评</a>
+                <a href="#aiChat" class="py-2">AI问答助手</a>
+                <a href="#books" class="py-2">著作库</a>
+                <div class="flex items-center gap-2 py-2">
+                    <span class="text-sm">AI模式：</span>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="aiModeSwitchMobile" class="sr-only peer" checked>
+                        <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-ai"></div>
+                        <span class="ml-2 text-sm">在线API</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container mx-auto px-4 py-10">
+        <!-- 首页欢迎区 -->
+        <section id="home" class="py-12 md:py-20 text-center" data-aos="fade-up">
+            <div class="max-w-3xl mx-auto">
+                <h2 class="text-[clamp(2rem,5vw,3.5rem)] font-bold text-neutralDark leading-tight mb-6">
+                    AI 智能哲学偏好测评
+                </h2>
+                <p class="text-lg md:text-xl text-neutral mb-4">
+                    结合DeepSeek大模型深度分析你的思维模式、价值观与认知倾向
+                </p>
+                <p class="text-neutral/80 mb-10">
+                    完成12道题目，获取专属哲学人格报告、著作解读与个性化书单
+                </p>
+                <button id="goTestBtn" class="bg-primary hover:bg-primaryLight text-white font-semibold py-4 px-10 rounded-3xl shadow-lg transition-all hover:scale-105 active:scale-95">
+                    <i class="fa fa-play-circle mr-2"></i>立即开始测评
+                </button>
+            </div>
+        </section>
+
+        <!-- 测评区域 -->
+        <section id="test" class="hidden py-8">
+            <div class="max-w-3xl mx-auto glass rounded-3xl p-6 md:p-10 shadow-card">
+                <!-- 进度条 -->
+                <div class="mb-8">
+                    <div class="flex justify-between text-sm text-neutral mb-2">
+                        <span>问题 <span id="currentQ">1</span> / 12</span>
+                        <span>完成度 <span id="progressText">8%</span></span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
+                        <div id="progressBar" class="bg-primary h-full rounded-full transition-all duration-500" style="width: 8%"></div>
+                    </div>
+                </div>
+
+                <!-- 题目区域 -->
+                <div id="questionWrap" class="mb-10">
+                    <h3 id="questionText" class="text-xl md:text-2xl font-semibold mb-8">加载中...</h3>
+                    <div id="optionsWrap" class="space-y-4">
+                        <!-- 选项动态渲染 -->
+                    </div>
+                </div>
+
+                <!-- 操作按钮 -->
+                <div class="flex justify-between gap-4">
+                    <button id="prevBtn" class="hidden flex-1 py-3 rounded-xl border border-gray-300 text-neutral hover:bg-gray-100 transition-colors">
+                        <i class="fa fa-arrow-left mr-2"></i>上一题
+                    </button>
+                    <button id="nextBtn" class="flex-1 bg-primary text-white py-3 rounded-xl hover:bg-primaryLight transition-colors">
+                        下一题<i class="fa fa-arrow-right ml-2"></i>
+                    </button>
+                    <button id="submitBtn" class="hidden flex-1 bg-ai text-white py-3 rounded-xl hover:bg-aiLight transition-colors">
+                        <i class="fa fa-check mr-2"></i>提交结果
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- AI测评结果区域 -->
+        <section id="result" class="hidden py-10">
+            <div class="max-w-5xl mx-auto glass rounded-3xl shadow-card overflow-hidden">
+                <!-- 头部标题栏 -->
+                <div class="bg-gradient-to-r from-primary to-secondary text-white p-6 md:p-8">
+                    <h3 class="text-2xl md:text-3xl font-bold mb-2">AI 智能分析报告</h3>
+                    <p class="opacity-90">基于你的答题数据，DeepSeek大模型已完成偏好解析与著作匹配</p>
+                </div>
+
+                <!-- 加载状态 -->
+                <div id="resultLoading" class="py-20 text-center">
+                    <div class="inline-block animate-spin text-5xl text-primary mb-4">
+                        <i class="fa fa-cog"></i>
+                    </div>
+                    <p class="text-lg text-neutral">AI正在深度分析你的哲学倾向，请稍候...</p>
+                </div>
+
+                <!-- 结果内容 -->
+                <div id="resultContent" class="hidden p-6 md:p-10">
+                    <!-- 匹配书籍卡片 -->
+                    <div class="grid md:grid-cols-4 gap-8 mb-12 pb-10 border-b border-gray-200">
+                        <div class="md:col-span-1">
+                            <img id="resBookCover" src="" alt="书籍封面" class="w-full max-w-48 mx-auto rounded-xl shadow-lg card-float">
+                        </div>
+                        <div class="md:col-span-3">
+                            <h4 id="resBookTitle" class="text-2xl font-bold mb-2"></h4>
+                            <p id="resBookAuthor" class="text-primary text-lg mb-3"></p>
+                            <div class="flex flex-wrap gap-2 mb-4">
+                                <span id="resGenreTag" class="px-3 py-1 rounded-full bg-blue-100 text-blue-700 text-sm"></span>
+                                <span id="resDiffTag" class="px-3 py-1 rounded-full bg-amber-100 text-amber-700 text-sm"></span>
+                            </div>
+                            <p id="resBookDesc" class="text-neutral mb-4 leading-relaxed"></p>
+                            <blockquote id="resBookQuote" class="border-l-4 border-primary pl-4 italic text-neutral my-4"></blockquote>
+                        </div>
+                    </div>
+
+                    <!-- 倾向雷达图 -->
+                    <div class="mb-12 pb-10 border-b border-gray-200">
+                        <h4 class="text-xl font-semibold mb-6">
+                            <i class="fa fa-bar-chart text-ai mr-2"></i>你的哲学倾向分布图
+                        </h4>
+                        <div class="h-72 md:h-80">
+                            <canvas id="tendencyChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- AI个人解读 -->
+                    <div class="mb-12 pb-10 border-b border-gray-200">
+                        <h4 class="text-xl font-semibold mb-4">
+                            <i class="fa fa-user-circle text-primary mr-2"></i>AI 个人偏好深度解读
+                        </h4>
+                        <div id="aiSelfReport" class="bg-neutralLight p-6 rounded-xl text-neutral leading-relaxed"></div>
+                    </div>
+
+                    <!-- 著作分层解读 -->
+                    <div class="grid md:grid-cols-3 gap-6 mb-12 pb-10 border-b border-gray-200">
+                        <div class="bg-blue-50 p-5 rounded-xl">
+                            <h5 class="font-semibold text-blue-700 mb-3">入门导读</h5>
+                            <p id="aiGuide" class="text-neutral text-sm leading-relaxed"></p>
+                        </div>
+                        <div class="bg-purple-50 p-5 rounded-xl">
+                            <h5 class="font-semibold text-purple-700 mb-3">核心思想</h5>
+                            <p id="aiCore" class="text-neutral text-sm leading-relaxed"></p>
+                        </div>
+                        <div class="bg-amber-50 p-5 rounded-xl">
+                            <h5 class="font-semibold text-amber-700 mb-3">阅读建议</h5>
+                            <p id="aiTips" class="text-neutral text-sm leading-relaxed"></p>
+                        </div>
+                    </div>
+
+                    <!-- 拓展书单 -->
+                    <div class="grid md:grid-cols-2 gap-6 mb-10">
+                        <div class="bg-green-50 p-6 rounded-xl">
+                            <h5 class="font-semibold text-green-700 mb-4">同风格延伸阅读</h5>
+                            <ul id="sameBookList" class="space-y-2 text-neutral"></ul>
+                        </div>
+                        <div class="bg-indigo-50 p-6 rounded-xl">
+                            <h5 class="font-semibold text-indigo-700 mb-4">互补风格拓展阅读</h5>
+                            <ul id="diffBookList" class="space-y-2 text-neutral"></ul>
+                        </div>
+                    </div>
+
+                    <!-- 功能按钮 -->
+                    <div class="flex flex-col md:flex-row gap-4">
+                        <button id="restartTest" class="flex-1 py-3 rounded-xl bg-primary text-white hover:bg-primaryLight transition-colors">
+                            <i class="fa fa-refresh mr-2"></i>重新测评
+                        </button>
+                        <button id="copyReport" class="flex-1 py-3 rounded-xl bg-secondary text-white hover:bg-secondary/90 transition-colors">
+                            <i class="fa fa-copy mr-2"></i>复制完整报告
+                        </button>
+                        <a href="#aiChat" class="flex-1 py-3 rounded-xl bg-ai text-white hover:bg-aiLight transition-colors text-center">
+                            <i class="fa fa-comments mr-2"></i>咨询AI助手
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- AI对话助手 -->
+        <section id="aiChat" class="hidden py-10">
+            <div class="max-w-4xl mx-auto glass rounded-3xl shadow-card overflow-hidden">
+                <div class="bg-ai text-white p-6">
+                    <h3 class="text-2xl font-bold mb-2"><i class="fa fa-robot mr-2"></i>AI 哲学问答助手</h3>
+                    <p class="opacity-90">提问哲学概念、著作解读、流派辨析，支持连续对话</p>
+                </div>
+
+                <div class="p-6">
+                    <!-- 聊天窗口 -->
+                    <div id="chatBox" class="scroll-smooth h-80 border border-gray-200 rounded-xl p-4 mb-4 overflow-y-auto space-y-4 bg-neutralLight">
+                        <div class="flex gap-3">
+                            <div class="w-8 h-8 rounded-full bg-ai text-white flex items-center justify-center flex-shrink-0">AI</div>
+                            <div class="bg-white p-3 rounded-xl shadow-sm max-w-[90%]">
+                                <p class="text-neutral">你好！我是基于DeepSeek V3的AI哲学助手，可以为你解答哲学问题、解读经典著作，有疑问尽管提问~</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 输入区域 -->
+                    <div class="flex gap-3">
+                        <input id="chatInput" type="text" placeholder="输入问题，例如：什么是理念论？《道德经》怎么入门？"
+                            class="flex-1 border border-gray-300 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-ai">
+                        <button id="chatSend" class="bg-ai text-white px-6 py-3 rounded-xl hover:bg-aiLight transition-colors">
+                            发送
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 经典著作库 -->
+        <section id="books" class="hidden py-10">
+            <h3 class="text-2xl md:text-3xl font-bold text-center mb-10">经典哲学著作库</h3>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                <!-- 书籍卡片由JS动态渲染 -->
+            </div>
+        </section>
+    </main>
+
+    <!-- 底部页脚 -->
+    <footer class="glass-dark text-white py-10 mt-16">
+        <div class="container mx-auto px-4 text-center">
+            <p class="mb-2">AI哲学测评平台 · 智能分析你的哲学偏好</p>
+            <p class="text-gray-400 text-sm">基于DeepSeek V3大模型提供AI能力</p>
+        </div>
+    </footer>
+
+    <!-- ====================== 核心JS逻辑 ====================== -->
+    <script>
+        // ========== 1. 已配置好的豆包方舟DeepSeek V3 API ==========
+        const AI_CONFIG = {
+            // 已默认开启在线AI模式
+            useOnlineAI: true,
+            // 你提供的API配置
+            apiKey: "sk-8809afd3f22a4da38f18c4c27277ba0d",
+            apiUrl: "https://api.deepseek.com/chat/completions",
+            modelName: "deepseek-v3-250324",
+            timeout: 15000
+        };
+
+        // 同步页面开关与配置
+        const aiSwitch = document.getElementById('aiModeSwitch');
+        const aiSwitchMobile = document.getElementById('aiModeSwitchMobile');
+        function syncAiMode() {
+            AI_CONFIG.useOnlineAI = aiSwitch.checked;
+            aiSwitchMobile.checked = aiSwitch.checked;
+        }
+        aiSwitch.addEventListener('change', syncAiMode);
+        aiSwitchMobile.addEventListener('change', () => {
+            aiSwitch.checked = aiSwitchMobile.checked;
+            syncAiMode();
+        });
+
+        // ========== 2. 基础题库 & 书籍数据 ==========
+        const testQuestions = [
+            {id:1,text:"当面对复杂问题时，你更倾向于：",options:[
+                {text:"通过逻辑推理和分析解决",val:"rationalism"},
+                {text:"依靠经验和观察寻找答案",val:"empiricism"},
+                {text:"直觉和灵感引导思考",val:"intuitionism"},
+                {text:"多角度综合判断",val:"holism"}
+            ]},
+            {id:2,text:"你认为道德标准来源于：",options:[
+                {text:"普遍的理性原则",val:"deontology"},
+                {text:"行为带来的结果",val:"utilitarianism"},
+                {text:"社会文化传统",val:"conventionalism"},
+                {text:"个人内心价值观",val:"subjectivism"}
+            ]},
+            {id:3,text:"对于人生意义，你的看法是：",options:[
+                {text:"意义客观存在，等待发现",val:"objectivism"},
+                {text:"意义由自己创造",val:"existentialism"},
+                {text:"顺应自然即是意义",val:"naturalism"},
+                {text:"人生本无预设意义",val:"nihilism"}
+            ]},
+            {id:4,text:"你如何看待知识？",options:[
+                {text:"知识来自理性思考",val:"rationalism"},
+                {text:"知识来自感官经验",val:"empiricism"},
+                {text:"知识是文化建构",val:"constructivism"},
+                {text:"绝对真理难以获得",val:"skepticism"}
+            ]},
+            {id:5,text:"社会观念上你偏向：",options:[
+                {text:"优先保障个人自由",val:"liberalism"},
+                {text:"重视集体秩序",val:"communitarianism"},
+                {text:"追求平等与正义",val:"egalitarianism"},
+                {text:"向往理想治理模式",val:"idealism"}
+            ]},
+            {id:6,text:"人与自然的关系：",options:[
+                {text:"人类主导利用自然",val:"anthropocentrism"},
+                {text:"人与自然和谐共生",val:"ecocentrism"},
+                {text:"人是自然的一部分",val:"naturalism"},
+                {text:"自然服务于人类",val:"instrumentalism"}
+            ]},
+            {id:7,text:"关于真理，你认为：",options:[
+                {text:"真理客观存在",val:"realism"},
+                {text:"真理因人而异",val:"relativism"},
+                {text:"有用即为真理",val:"pragmatism"},
+                {text:"真理依赖语言思维",val:"linguistic"}
+            ]},
+            {id:8,text:"面对死亡，你的态度是：",options:[
+                {text:"坦然接受自然规律",val:"stoicism"},
+                {text:"心存恐惧、尽力规避",val:"fear"},
+                {text:"死亡让生命更珍贵",val:"existentialism"},
+                {text:"相信灵魂延续",val:"afterlife"}
+            ]},
+            {id:9,text:"艺术审美你偏爱：",options:[
+                {text:"秩序、和谐与形式美",val:"classicism"},
+                {text:"情感与内心表达",val:"romanticism"},
+                {text:"突破传统创新",val:"modernism"},
+                {text:"真实还原现实",val:"realism"}
+            ]},
+            {id:10,text:"科学与信仰的关系：",options:[
+                {text:"二者互补共存",val:"compatibilism"},
+                {text:"科学是唯一真理",val:"scientism"},
+                {text:"精神信仰高于科学",val:"mysticism"},
+                {text:"分属不同领域",val:"linguistic"}
+            ]},
+            {id:11,text:"人际交往更看重：",options:[
+                {text:"内心真诚",val:"authenticity"},
+                {text:"和睦尊重",val:"harmony"},
+                {text:"共同理想",val:"idealism"},
+                {text:"务实互助",val:"pragmatism"}
+            ]},
+            {id:12,text:"你认为哲学的价值在于：",options:[
+                {text:"探求终极真理",val:"truth"},
+                {text:"解决现实问题",val:"pragmatism"},
+                {text:"反思与批判",val:"critical"},
+                {text:"认识自我、精神成长",val:"selfknowledge"}
+            ]}
+        ];
+
+        const bookData = [
+            {
+                title:"理想国",author:"柏拉图",cover:"https://p3-flow-imagex-sign.byteimg.com/tos-cn-i-a9rns2rl98/rc/pc/super_tool/9675a3d7d1bf40618e707aa34c4d3920~tplv-a9rns2rl98-image.image",
+                desc:"西方政治哲学开山之作，以对话形式探讨正义、美德与理想城邦。",
+                genre:"政治哲学/古典唯心",diff:"中等",quote:"美是永恒的喜悦，它的美没有增减，没有变化。",
+                match:["rationalism","idealism","objectivism"],
+                guide:"建议先读懂洞穴比喻、灵魂三分两大核心概念，分段阅读。",
+                core:"核心探讨正义，区分个人正义与城邦正义，提出理念论。",
+                tips:"对话篇幅较长，可优先精读核心章节，搭配导读使用。",
+                same:["《申辩篇》柏拉图","《政治学》亚里士多德"],
+                diff:["《社会契约论》卢梭","《利维坦》霍布斯"]
+            },
+            {
+                title:"道德经",author:"老子",cover:"https://p26-flow-imagex-sign.byteimg.com/tos-cn-i-a9rns2rl98/rc/pc/super_tool/da34bb309e6242bc891048eb1711b9c0~tplv-a9rns2rl98-image.image",
+                desc:"道家经典，阐释道为万物本源，主张道法自然、无为不争。",
+                genre:"东方道家哲学",diff:"高",quote:"道可道，非常道；名可名，非常名。",
+                match:["naturalism","intuitionism","holism"],
+                guide:"全书81章，建议碎片化阅读，结合生活感悟理解。",
+                core:"道是宇宙本源，核心思想：自然无为、返璞归真、柔弱胜刚强。",
+                tips:"古文晦涩，建议搭配白话译文与名家注解阅读。",
+                same:["《庄子》","《列子》"],
+                diff:["《论语》","《荀子》"]
+            },
+            {
+                title:"存在与时间",author:"海德格尔",cover:"https://p11-flow-imagex-sign.byteimg.com/tos-cn-i-a9rns2rl98/rc/pc/super_tool/3a6605cb131c4eec9ef6ea0621796308~tplv-a9rns2rl98-image.image",
+                desc:"存在主义代表作，追问存在本质，提出向死而生等核心概念。",
+                genre:"存在主义/现象学",diff:"高",quote:"人是被抛入这个世界的。",
+                match:["existentialism","authenticity","nihilism"],
+                guide:"专业难度极高，零基础请先阅读存在主义入门读物。",
+                core:"区分存在与存在者，人的本质是面向死亡的本真生存。",
+                tips:"术语晦涩、句式复杂，不建议零基础直接通读原文。",
+                same:["《存在与虚无》萨特","《查拉图斯特拉如是说》尼采"],
+                diff:["《纯粹理性批判》康德"]
+            },
+            {
+                title:"人性论",author:"休谟",cover:"https://p26-flow-imagex-sign.byteimg.com/tos-cn-i-a9rns2rl98/rc/pc/super_tool/56d1c76b453842ca8949cbca8988c216~tplv-a9rns2rl98-image.image",
+                desc:"近代经验主义经典，主张一切知识来源于感官经验。",
+                genre:"经验主义/认识论",diff:"中等",quote:"习惯是人生的伟大指南。",
+                match:["empiricism","skepticism","scientism"],
+                guide:"分为理解、情感、道德三卷，循序渐进解读人性。",
+                core:"因果关系并非客观必然，而是人类心理习惯；道德源于情感。",
+                tips:"篇幅庞大，优先阅读第一卷认识论部分即可掌握核心。",
+                same:["《人类理解研究》休谟","《论法的精神》孟德斯鸠"],
+                diff:["《第一哲学沉思集》笛卡尔"]
+            }
+        ];
+
+        // ========== 3. 全局状态 ==========
+        let currentQIndex = 0;
+        let userAnswers = [];
+        let chatHistory = []; // AI对话上下文
+
+        // DOM 元素简写
+        const dom = {
+            home: document.getElementById('home'),
+            test: document.getElementById('test'),
+            result: document.getElementById('result'),
+            aiChat: document.getElementById('aiChat'),
+            books: document.getElementById('books'),
+            goTestBtn: document.getElementById('goTestBtn'),
+            currentQ: document.getElementById('currentQ'),
+            progressBar: document.getElementById('progressBar'),
+            progressText: document.getElementById('progressText'),
+            questionText: document.getElementById('questionText'),
+            optionsWrap: document.getElementById('optionsWrap'),
+            prevBtn: document.getElementById('prevBtn'),
+            nextBtn: document.getElementById('nextBtn'),
+            submitBtn: document.getElementById('submitBtn'),
+            resultLoading: document.getElementById('resultLoading'),
+            resultContent: document.getElementById('resultContent'),
+            mobileMenuBtn: document.getElementById('mobileMenuBtn'),
+            mobileMenu: document.getElementById('mobileMenu'),
+            chatBox: document.getElementById('chatBox'),
+            chatInput: document.getElementById('chatInput'),
+            chatSend: document.getElementById('chatSend'),
+            restartTest: document.getElementById('restartTest'),
+            copyReport: document.getElementById('copyReport')
+        };
+
+        // ========== 4. 工具函数 ==========
+        // 平滑滚动
+        function scrollToEl(el) {
+            el.scrollIntoView({behavior: 'smooth'});
+        }
+
+        // 计算进度
+        function calcProgress() {
+            const total = testQuestions.length;
+            const now = currentQIndex + 1;
+            const pct = (now / total * 100).toFixed(0) + '%';
+            dom.progressBar.style.width = pct;
+            dom.progressText.innerText = pct;
+            dom.currentQ.innerText = now;
+        }
+
+        // 渲染当前题目
+        function renderQuestion() {
+            const q = testQuestions[currentQIndex];
+            dom.questionText.innerText = q.text;
+            dom.optionsWrap.innerHTML = '';
+
+            q.options.forEach((opt, idx) => {
+                const div = document.createElement('div');
+                div.className = 'answer-item p-4 bg-white rounded-xl shadow-sm cursor-pointer';
+                div.innerHTML = `<span>${idx+1}. ${opt.text}</span>`;
+                // 回填已选答案
+                if(userAnswers[currentQIndex] === opt.val) {
+                    div.classList.add('active');
+                }
+                div.onclick = () => {
+                    userAnswers[currentQIndex] = opt.val;
+                    document.querySelectorAll('.answer-item').forEach(item=>item.classList.remove('active'));
+                    div.classList.add('active');
+                };
+                dom.optionsWrap.appendChild(div);
+            });
+
+            // 按钮显隐
+            dom.prevBtn.classList.toggle('hidden', currentQIndex === 0);
+            dom.nextBtn.classList.toggle('hidden', currentQIndex >= testQuestions.length - 1);
+            dom.submitBtn.classList.toggle('hidden', currentQIndex < testQuestions.length - 1);
+            calcProgress();
+        }
+
+        // 匹配最优书籍
+        function matchBook() {
+            const ans = userAnswers.filter(Boolean);
+            const scoreList = bookData.map(book => {
+                let score = 0;
+                ans.forEach(val => {
+                    if(book.match.includes(val)) score++;
+                });
+                return {...book, score};
+            });
+            scoreList.sort((a,b)=>b.score - a.score);
+            return scoreList[0];
+        }
+
+        // 生成雷达图数据
+        function getChartData() {
+            const tags = ["理性主义","经验主义","直觉主义","存在主义","自然主义","怀疑主义"];
+            const counts = [0,0,0,0,0,0];
+            userAnswers.forEach(v=>{
+                if(v==='rationalism') counts[0]++;
+                if(v==='empiricism') counts[1]++;
+                if(v==='intuitionism') counts[2]++;
+                if(v==='existentialism') counts[3]++;
+                if(v==='naturalism') counts[4]++;
+                if(v==='skepticism') counts[5]++;
+            });
+            return {labels: tags, data: counts};
+        }
+
+        // 初始化雷达图
+        function initChart(data) {
+            const ctx = document.getElementById('tendencyChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'radar',
+                data: {
+                    labels: data.labels,
+                    datasets: [{
+                        label: '你的倾向分值',
+                        data: data.data,
+                        backgroundColor: 'rgba(37, 99, 235, 0.2)',
+                        borderColor: 'rgba(37, 99, 235, 1)',
+                        pointBackgroundColor: 'rgba(37, 99, 235, 1)',
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        r: {beginAtZero: true, max: 6}
+                    }
+                }
+            });
+        }
+
+        // 模拟AI本地文案生成
+        function getLocalAIReport(book) {
+            return {
+                selfReport: `从你的答题选择可以看出，你偏向${book.genre}相关的思维模式，擅长以贴合该流派的视角看待世界，价值观与本书思想高度契合。你更愿意沉浸在这类哲学体系中思考人生、社会与自我。`,
+                guide: book.guide,
+                core: book.core,
+                tips: book.tips
+            };
+        }
+
+        // 调用在线AI API（通用流式/非流式）
+        async function fetchAI(prompt) {
+            if(!AI_CONFIG.apiKey) {
+                alert('请先在代码中配置你的 API Key！');
+                return null;
+            }
+            const controller = new AbortController();
+            const timer = setTimeout(()=>controller.abort(), AI_CONFIG.timeout);
+
+            try {
+                const res = await fetch(AI_CONFIG.apiUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${AI_CONFIG.apiKey}`
+                    },
+                    body: JSON.stringify({
+                        model: AI_CONFIG.modelName,
+                        messages: [...chatHistory, {role:'user', content: prompt}],
+                        temperature: 0.7
+                    }),
+                    signal: controller.signal
+                });
+                clearTimeout(timer);
+                if(!res.ok) throw new Error('API请求失败');
+                const json = await res.json();
+                const content = json.choices[0].message.content;
+                chatHistory.push({role:'user', content: prompt});
+                chatHistory.push({role:'assistant', content});
+                return content;
+            } catch (e) {
+                clearTimeout(timer);
+                console.error(e);
+                return 'AI请求超时或接口异常，请切换为本地模拟模式重试。';
+            }
+        }
+
+        // 渲染测评结果
+        async function renderResult() {
+            dom.test.classList.add('hidden');
+            dom.result.classList.remove('hidden');
+            dom.resultLoading.classList.remove('hidden');
+            dom.resultContent.classList.add('hidden');
+            scrollToEl(dom.result);
+
+            const targetBook = matchBook();
+            let aiText;
+
+            if(AI_CONFIG.useOnlineAI) {
+                const prompt = `根据用户的哲学答题偏好，结合著作《${targetBook.title}》(${targetBook.author})，生成三段内容：1.个人哲学偏好解读 2.书籍入门导读 3.核心思想与阅读建议。分段输出，语言通俗流畅。`;
+                aiText = await fetchAI(prompt);
+            }
+
+            // 解析AI文本 / 使用本地模拟
+            let reportData;
+            if(AI_CONFIG.useOnlineAI && aiText) {
+                const arr = aiText.split('\n').filter(t=>t.trim());
+                reportData = {
+                    selfReport: arr[0] || '',
+                    guide: arr[1] || targetBook.guide,
+                    core: arr[2] || targetBook.core,
+                    tips: arr[3] || targetBook.tips
+                };
+            } else {
+                reportData = getLocalAIReport(targetBook);
+            }
+
+            // 填充页面
+            document.getElementById('resBookCover').src = targetBook.cover;
+            document.getElementById('resBookTitle').innerText = targetBook.title;
+            document.getElementById('resBookAuthor').innerText = targetBook.author;
+            document.getElementById('resGenreTag').innerText = targetBook.genre;
+            document.getElementById('resDiffTag').innerText = `难度：${targetBook.diff}`;
+            document.getElementById('resBookDesc').innerText = targetBook.desc;
+            document.getElementById('resBookQuote').innerText = `「${targetBook.quote}」`;
+
+            document.getElementById('aiSelfReport').innerText = reportData.selfReport;
+            document.getElementById('aiGuide').innerText = reportData.guide;
+            document.getElementById('aiCore').innerText = reportData.core;
+            document.getElementById('aiTips').innerText = reportData.tips;
+
+            // 书单
+            const sameUl = document.getElementById('sameBookList');
+            const diffUl = document.getElementById('diffBookList');
+            sameUl.innerHTML = targetBook.same.map(item=>`<li>• ${item}</li>`).join('');
+            diffUl.innerHTML = targetBook.diff.map(item=>`<li>• ${item}</li>`).join('');
+
+            // 图表
+            const chartData = getChartData();
+            initChart(chartData);
+
+            dom.resultLoading.classList.add('hidden');
+            dom.resultContent.classList.remove('hidden');
+        }
+
+        // 发送聊天消息
+        async function sendChat() {
+            const text = dom.chatInput.value.trim();
+            if(!text) return;
+            dom.chatInput.value = '';
+
+            // 添加用户消息
+            dom.chatBox.innerHTML += `
+                <div class="flex gap-3 justify-end">
+                    <div class="bg-primary text-white p-3 rounded-xl max-w-[90%]">${text}</div>
+                </div>
+            `;
+            dom.chatBox.scrollTop = dom.chatBox.scrollHeight;
+
+            // AI回复
+            let aiReply = '';
+            if(AI_CONFIG.useOnlineAI) {
+                aiReply = await fetchAI(text);
+            } else {
+                // 本地模拟回复
+                aiReply = `收到你的问题：${text}。当前为本地模拟AI模式，切换为在线API可获得真实智能回答。`;
+            }
+
+            dom.chatBox.innerHTML += `
+                <div class="flex gap-3">
+                    <div class="w-8 h-8 rounded-full bg-ai text-white flex items-center justify-center flex-shrink-0">AI</div>
+                    <div class="bg-white p-3 rounded-xl shadow-sm max-w-[90%]">${aiReply}</div>
+                </div>
+            `;
+            dom.chatBox.scrollTop = dom.chatBox.scrollHeight;
+        }
+
+        // 复制报告
+        function copyReportText() {
+            const title = document.getElementById('resBookTitle').innerText;
+            const author = document.getElementById('resBookAuthor').innerText;
+            const report = document.getElementById('aiSelfReport').innerText;
+            const txt = `AI哲学测评报告\n推荐著作：${title} - ${author}\n\n个人偏好解读：\n${report}`;
+            navigator.clipboard.writeText(txt).then(()=>{
+                alert('报告已复制到剪贴板！');
+            }).catch(()=>{
+                alert('复制失败，请手动选择文本复制');
+            });
+        }
+
+        // 重置测评
+        function resetTest() {
+            currentQIndex = 0;
+            userAnswers = [];
+            dom.result.classList.add('hidden');
+            dom.test.classList.remove('hidden');
+            renderQuestion();
+            scrollToEl(dom.test);
+        }
+
+        // 渲染著作库
+        function renderBooks() {
+            const wrap = document.querySelector('#books .grid');
+            wrap.innerHTML = '';
+            bookData.forEach(book=>{
+                const div = document.createElement('div');
+                div.className = 'bg-white rounded-2xl shadow-card overflow-hidden card-float';
+                div.innerHTML = `
+                    <img src="${book.cover}" alt="${book.title}" class="w-full h-56 object-cover">
+                    <div class="p-5">
+                        <h4 class="text-lg font-bold mb-1">${book.title}</h4>
+                        <p class="text-primary text-sm mb-2">${book.author}</p>
+                        <p class="text-neutral text-sm line-clamp-2">${book.desc}</p>
+                    </div>
+                `;
+                wrap.appendChild(div);
+            });
+        }
+
+        // ========== 5. 事件绑定 ==========
+        // 移动端菜单
+        dom.mobileMenuBtn.addEventListener('click', ()=>{
+            dom.mobileMenu.classList.toggle('hidden');
+        });
+
+        // 前往测评
+        dom.goTestBtn.addEventListener('click', ()=>{
+            dom.home.classList.add('hidden');
+            dom.test.classList.remove('hidden');
+            renderQuestion();
+            scrollToEl(dom.test);
+        });
+
+        // 上一题
+        dom.prevBtn.addEventListener('click', ()=>{
+            if(currentQIndex > 0) {
+                currentQIndex--;
+                renderQuestion();
+            }
+        });
+
+        // 下一题
+        dom.nextBtn.addEventListener('click', ()=>{
+            if(currentQIndex < testQuestions.length - 1) {
+                currentQIndex++;
+                renderQuestion();
+            }
+        });
+
+        // 提交结果
+        dom.submitBtn.addEventListener('click', renderResult);
+
+        // 重新测评
+        dom.restartTest.addEventListener('click', resetTest);
+
+        // 复制报告
+        dom.copyReport.addEventListener('click', copyReportText);
+
+        // AI聊天发送
+        dom.chatSend.addEventListener('click', sendChat);
+        dom.chatInput.addEventListener('keydown', e=>{
+            if(e.key === 'Enter') sendChat();
+        });
+
+        // 导航锚点切换显示区域
+        document.querySelectorAll('a[href^="#"]').forEach(a=>{
+            a.addEventListener('click', e=>{
+                e.preventDefault();
+                const targetId = a.getAttribute('href').slice(1);
+                dom.home.classList.add('hidden');
+                dom.test.classList.add('hidden');
+                dom.result.classList.add('hidden');
+                dom.aiChat.classList.add('hidden');
+                dom.books.classList.add('hidden');
+
+                if(targetId === 'home') dom.home.classList.remove('hidden');
+                if(targetId === 'test') dom.test.classList.remove('hidden');
+                if(targetId === 'aiChat') dom.aiChat.classList.remove('hidden');
+                if(targetId === 'books') dom.books.classList.remove('hidden');
+
+                dom.mobileMenu.classList.add('hidden');
+                scrollToEl(document.getElementById(targetId));
+            });
+        });
+
+        // 页面初始化
+        window.addEventListener('DOMContentLoaded', ()=>{
+            AOS.init({duration: 700, once: true});
+            renderBooks();
+        });
+    </script>
+</body>
+</html>
